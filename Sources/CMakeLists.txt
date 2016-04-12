@@ -809,6 +809,9 @@ endif()
 
 if(LINUX)
     set_target_properties(ssam PROPERTIES LINK_FLAGS "-Wl,-rpath,$ORIGIN")
+    # Make symbols in the main executable available to dynamic objects
+    set_target_properties(ssam PROPERTIES LINK_FLAGS "-rdynamic")
+
     target_link_libraries(ssam "m")
     target_link_libraries(ssam "dl")
     if(PANDORA)
