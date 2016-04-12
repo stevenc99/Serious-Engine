@@ -25,7 +25,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Graphics/Fog_internal.h>
 #include <Engine/Graphics/GfxProfile.h>
 #include <Engine/Graphics/ImageInfo.h>
-
+#ifdef USE_PORTABLE_C
+# include <byteswap.h>  
+#endif
 
 // asm shortcuts
 #define O offset
@@ -69,7 +71,14 @@ ULONG PrepareTexture( UBYTE *pubTexture, PIX pixSizeI, PIX pixSizeJ)
   const PIX pixTextureSize = pixSizeI*pixSizeJ;
 
  #if (defined USE_PORTABLE_C)
-   STUBBED("PrepareTexture");
+   const UBYTE* src = pubTexture;
+   DWORD* dst = (DWORD*)(pubTexture+pixTextureSize);
+   for (int i=0; i<pixTextureSize; i++) {
+    const DWORD tmp = ((DWORD)*src) | 0xFFFFFF00;
+    *dst = bswap_32(tmp);
+    src++;
+    dst++;
+   }
 
  #elif (defined __MSVC_INLINE__)
   __asm {
@@ -143,9 +152,9 @@ void StartFog( CFogParameters &fp, const FLOAT3D &vViewPosAbs, const FLOATmatrix
 
   // calculate fog table size wanted
   extern INDEX tex_iFogSize;
-  tex_iFogSize = Clamp( tex_iFogSize, 4L, 8L); 
-  PIX pixSizeH = ClampUp( _fog_fp.fp_iSizeH, 1L<<tex_iFogSize);
-  PIX pixSizeL = ClampUp( _fog_fp.fp_iSizeL, 1L<<tex_iFogSize);
+  tex_iFogSize = Clamp( tex_iFogSize, 4, 8);
+  PIX pixSizeH = ClampUp( _fog_fp.fp_iSizeH, 1<<tex_iFogSize);
+  PIX pixSizeL = ClampUp( _fog_fp.fp_iSizeL, 1<<tex_iFogSize);
   BOOL bNoDiscard = TRUE;
 
   // if fog table is not allocated in right size
@@ -261,7 +270,7 @@ void StartFog( CFogParameters &fp, const FLOAT3D &vViewPosAbs, const FLOATmatrix
       FLOAT fTStep = 1.0f/pixSizeL *fFar*fDensity*fA *255;
       // fog is just clamped fog parameter in each pixel
       for( INDEX pixL=0; pixL<pixSizeL; pixL++) {
-        _fog_pubTable[pixH*pixSizeL+pixL] = Clamp( FloatToInt(fT), 0L, 255L);
+        _fog_pubTable[pixH*pixSizeL+pixL] = Clamp( FloatToInt(fT), 0, 255);
         fT += fTStep;
       } 
     } break;

@@ -123,6 +123,20 @@ CTextureObject *_ptoLogoCT  = NULL;
 CTextureObject *_ptoLogoODI = NULL;
 CTextureObject *_ptoLogoEAX = NULL;
 
+#ifdef FIRST_ENCOUNTER  // First Encounter
+CTString sam_strVersion = "1.10";
+CTString sam_strModName = TRANS("-   O P E N   S O U R C E   -");
+#if _SE_DEMO
+  CTString sam_strFirstLevel = "Levels\\KarnakDemo.wld";
+#else
+  CTString sam_strFirstLevel = "Levels\\01_Hatshepsut.wld";
+#endif
+CTString sam_strIntroLevel = "Levels\\Intro.wld";
+CTString sam_strGameName = "serioussamfe";
+
+CTString sam_strTechTestLevel = "Levels\\TechTest.wld";
+CTString sam_strTrainingLevel = "Levels\\KarnakDemo.wld";
+#else    // Second Encounter
 CTString sam_strVersion = "1.10";
 CTString sam_strModName = TRANS("-   O P E N   S O U R C E   -");
 
@@ -130,11 +144,11 @@ CTString sam_strFirstLevel = "Levels\\LevelsMP\\1_0_InTheLastEpisode.wld";
 CTString sam_strIntroLevel = "Levels\\LevelsMP\\Intro.wld";
 CTString sam_strGameName = "serioussamse";
 
-CTString sam_strTechTestLevel = "Levels\\LevelsMP\\TechTest.wld";
+CTString sam_strTechTestLevel = "Levels\\LevelsMP\\Technology\\TechTest.wld";
 CTString sam_strTrainingLevel = "Levels\\KarnakDemo.wld";
+#endif
 
 ENGINE_API extern INDEX snd_iFormat;
-
 
 // main window canvas
 CDrawPort *pdp;
@@ -273,12 +287,12 @@ void LimitFrameRate(void)
   TIME tmCurrentDelta = (tvNow-tvLast).GetSeconds();
 
   // limit maximum frame rate
-  sam_iMaxFPSActive   = ClampDn( (INDEX)sam_iMaxFPSActive,   1L);
-  sam_iMaxFPSInactive = ClampDn( (INDEX)sam_iMaxFPSInactive, 1L);
+  sam_iMaxFPSActive   = ClampDn( (INDEX)sam_iMaxFPSActive,   1);
+  sam_iMaxFPSInactive = ClampDn( (INDEX)sam_iMaxFPSInactive, 1);
   INDEX iMaxFPS = sam_iMaxFPSActive;
   if( IsIconic(_hwndMain)) iMaxFPS = sam_iMaxFPSInactive;
   if(_pGame->gm_CurrentSplitScreenCfg==CGame::SSC_DEDICATED) {
-    iMaxFPS = ClampDn(iMaxFPS, 60L); // never go very slow if dedicated server
+    iMaxFPS = ClampDn(iMaxFPS, 60); // never go very slow if dedicated server
   }
   TIME tmWantedDelta = 1.0f / iMaxFPS;
   if( tmCurrentDelta<tmWantedDelta) _pTimer->Sleep( (tmWantedDelta-tmCurrentDelta)*1000.0f);
@@ -403,9 +417,7 @@ void LoadAndForceTexture(CTextureObject &to, CTextureObject *&pto, const CTFileN
   }
 }
 
-#if (!defined PLATFORM_WIN32)
 static char *argv0 = NULL;
-#endif
 
 void InitializeGame(void)
 {
@@ -445,17 +457,21 @@ void InitializeGame(void)
   _pGame->Initialize(CTString("Data\\SeriousSam.gms"));
 }
 
+#ifdef PLATFORM_UNIX
+static void atexit_sdlquit(void) { static bool firsttime = true; if (firsttime) { firsttime = false; SDL_Quit(); } }
+#endif
+
 BOOL Init( HINSTANCE hInstance, int nCmdShow, CTString strCmdLine)
 {
+#ifdef PLATFORM_UNIX
+  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) == -1)
+    FatalError("SDL_Init(VIDEO|AUDIO) failed. Reason: [%s].", SDL_GetError());
+  atexit(atexit_sdlquit);
+  SDL_Init(SDL_INIT_JOYSTICK);  // don't care if this fails.
+#endif
+
   _hInstance = hInstance;
   ShowSplashScreen(hInstance);
-
-// !!! FIXME: This needs to be done before DetermineDesktopWidth(), but I
-// !!! FIXME:  don't really want this here.
-#ifdef PLATFORM_UNIX
-  if (SDL_Init(SDL_INIT_VIDEO) == -1)
-    FatalError("SDL_Init(SDL_INIT_VIDEO) failed. Reason: [%s].", SDL_GetError());
-#endif
 
   // remember desktop width
   _pixDesktopWidth = DetermineDesktopWidth();
@@ -466,12 +482,6 @@ BOOL Init( HINSTANCE hInstance, int nCmdShow, CTString strCmdLine)
 
   // parse command line before initializing engine
   ParseCommandLine(strCmdLine);
-
-#ifdef PLATFORM_WIN32
-  char argv0[MAX_PATH];
-  memset(argv0, '\0', sizeof (argv0));
-  GetModuleFileName(NULL, argv0, sizeof (argv0) - 1);
-#endif
 
   // initialize engine
   SE_InitEngine(argv0, sam_strGameName);
@@ -672,6 +682,10 @@ void End(void)
   // unlock the directory
   DirectoryLockOff();
   SE_EndEngine();
+
+#if PLATFORM_UNIX
+  SDL_Quit();
+#endif
 }
 
 
@@ -991,13 +1005,14 @@ int SubMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int 
           break;
         }
       }
+#else
+      STUBBED("SDL2 can handle these events");
 #endif
 
       // toggle full-screen on alt-enter
       if( msg.message==WM_SYSKEYDOWN && msg.wParam==VK_RETURN && !IsIconic(_hwndMain)) {
-// !!! FIXME: This can be more efficient under Linux with
-// !!! FIXME:  SDL_WM_ToggleFullScreen(), since the GL context is just
-// !!! FIXME:  reused there...  --ryan.
+        // !!! FIXME: SDL doesn't need to rebuild the GL context here to toggle fullscreen.
+        STUBBED("SDL doesn't need to rebuild the GL context here...");
         StartNewMode( (GfxAPIType)sam_iGfxAPI, sam_iDisplayAdapter, sam_iScreenSizeI, sam_iScreenSizeJ,
                       (enum DisplayDepth)sam_iDisplayDepth, !sam_bFullScreenActive);
 
@@ -1375,7 +1390,13 @@ int CommonMainline( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 int PASCAL WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 			LPSTR lpCmdLine, int nCmdShow)
 {
-  return(CommonMainline(hInstance, hPrevInstance, lpCmdLine, nCmdShow));
+  argv0 = new char[MAX_PATH];
+  memset(argv0, '\0', sizeof (argv0));
+  GetModuleFileName(NULL, argv0, MAX_PATH-1);
+  const int rc = CommonMainline(hInstance, hPrevInstance, lpCmdLine, nCmdShow);
+  delete[] argv0;
+  argv0 = NULL;
+  return rc;
 }
 
 #else

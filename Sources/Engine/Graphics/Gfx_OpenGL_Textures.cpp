@@ -133,8 +133,11 @@ void UploadTexture_OGL( ULONG *pulTexture, PIX pixSizeU, PIX pixSizeV,
   PIX pixOffset=0;
   while( pixSizeU>0 && pixSizeV>0)
   { 
+    #if 0  // trust me, you'll know if it's not readable.  :)  This assert will read one past the start of the array if U or V is zero, so turning it off.  --ryan.
     // check that memory is readable
     ASSERT( pulTexture[pixOffset +pixSizeU*pixSizeV -1] != 0xDEADBEEF);
+    #endif
+
     // upload mipmap as fast as possible
     if( bUseSubImage) {
       pglTexSubImage2D( GL_TEXTURE_2D, iMip, 0, 0, pixSizeU, pixSizeV,
@@ -168,18 +171,29 @@ void UploadTexture_OGL( ULONG *pulTexture, PIX pixSizeU, PIX pixSizeV,
 
       #if (defined USE_PORTABLE_C)
       // Basically average every other pixel...
-      pixSize *= 4;
-
       UWORD w = 0;
       UBYTE *dptr = (UBYTE *) pulDst;
       UBYTE *sptr = (UBYTE *) pulSrc;
+      #if 0
+      pixSize *= 4;
       for (PIX i = 0; i < pixSize; i++)
       {
         *dptr = (UBYTE) ( (((UWORD) sptr[0]) + ((UWORD) sptr[1])) >> 1 );
         dptr++;
         sptr += 2;
       }
-
+      #else
+      for (PIX i = 0; i < pixSize; i++)
+      {
+        for (PIX j = 0; j < 4; j++)
+        {
+          *dptr = (UBYTE) ( (((UWORD) sptr[0]) + ((UWORD) sptr[4])) >> 1 );
+          dptr++;
+          sptr++;
+        }
+        sptr += 4;
+      }
+      #endif
       #elif (defined __MSVC_INLINE__)
       __asm {   
         pxor    mm0,mm0

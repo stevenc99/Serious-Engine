@@ -57,7 +57,6 @@ extern INDEX shd_iDithering;
 extern const UBYTE *pubClipByte;
 extern UBYTE aubSqrt[  SQRTTABLESIZE];
 extern UWORD auw1oSqrt[SQRTTABLESIZE];
-extern UWORD auw1oSqrt[SQRTTABLESIZE];
 // static FLOAT3D _v00;
 
 // internal class for layer mixing
@@ -123,7 +122,7 @@ public:
   // add the intensity to the pixel
   inline void AddToCluster( UBYTE *pub);
   inline void AddAmbientToCluster( UBYTE *pub);
-  inline void AddToCluster( UBYTE *pub, FLOAT fIntensity);
+  inline void AddToCluster( UBYTE *pub, SLONG slIntensity);
 
   // additional functions
   __forceinline void CopyShadowLayer(void);
@@ -161,11 +160,11 @@ inline void CLayerMixer::AddAmbientToCluster( UBYTE *pub)
   IncrementByteWithClip(pub[1], ((UBYTE*)&lm_colAmbient)[2]);
   IncrementByteWithClip(pub[2], ((UBYTE*)&lm_colAmbient)[1]);
 }
-inline void CLayerMixer::AddToCluster( UBYTE *pub, FLOAT fIntensity)
+inline void CLayerMixer::AddToCluster( UBYTE *pub, SLONG slIntensity)
 {
-  IncrementByteWithClip(pub[0], (long) (((UBYTE*)&lm_colLight)[3] *fIntensity));
-  IncrementByteWithClip(pub[1], (long) (((UBYTE*)&lm_colLight)[2] *fIntensity));
-  IncrementByteWithClip(pub[2], (long) (((UBYTE*)&lm_colLight)[1] *fIntensity));
+  IncrementByteWithClip(pub[0], (long) (((UBYTE*)&lm_colLight)[3] *slIntensity)>>16);
+  IncrementByteWithClip(pub[1], (long) (((UBYTE*)&lm_colLight)[2] *slIntensity)>>16);
+  IncrementByteWithClip(pub[2], (long) (((UBYTE*)&lm_colLight)[1] *slIntensity)>>16);
 }
 
   
@@ -185,8 +184,8 @@ void CLayerMixer::CalculateData( CBrushShadowMap *pbsm, INDEX iMipmap)
   lm_iMipShift   = lm_iMipLevel - lm_iFirstLevel;
   lm_pixCanvasSizeU  = pbsm->sm_mexWidth >>lm_iMipLevel;
   lm_pixCanvasSizeV  = pbsm->sm_mexHeight>>lm_iMipLevel;
-  lm_pixPolygonSizeU = Min( lm_pixCanvasSizeU, (PIX)(lm_pbsmShadowMap->sm_pixPolygonSizeU >>lm_iMipShift)+1L);
-  lm_pixPolygonSizeV = Min( lm_pixCanvasSizeV, (PIX)(lm_pbsmShadowMap->sm_pixPolygonSizeV >>lm_iMipShift)+1L);
+  lm_pixPolygonSizeU = Min( lm_pixCanvasSizeU, (PIX)(lm_pbsmShadowMap->sm_pixPolygonSizeU >>lm_iMipShift)+1);
+  lm_pixPolygonSizeV = Min( lm_pixCanvasSizeV, (PIX)(lm_pbsmShadowMap->sm_pixPolygonSizeV >>lm_iMipShift)+1);
 
   // determine where this mip-map is relative to the allocated shadow map memory
   PIX pixOffset = pbsm->sm_slMemoryUsed/BYTES_PER_TEXEL
@@ -451,8 +450,8 @@ skipPixel:
 
     // !!! FIXME WARNING: I have not checked this code, and it could be
     // !!! FIXME           totally and utterly wrong.  --ryan.
-  STUBBED("may not work");
-
+//  STUBBED("may not work");
+  UBYTE* pubLayer = (UBYTE*)_pulLayer;
   for( PIX pixV=0; pixV<_iRowCt; pixV++)
   {
     SLONG slL2Point = _slL2Row;
@@ -464,17 +463,17 @@ skipPixel:
         SLONG slL = (slL2Point>>SHIFTX)&(SQRTTABLESIZE-1);  // and is just for degenerate cases
         SLONG slIntensity = _slLightMax;
         slL = aubSqrt[slL];
-        if( slL>_slHotSpot) slIntensity = ((255-slL)*_slLightStep)>>8;
+        if( slL>_slHotSpot) slIntensity = ((255-slL)*_slLightStep);
         // add the intensity to the pixel
-        AddToCluster( (UBYTE*)_pulLayer, slIntensity/255.0f);
+        AddToCluster( pubLayer, slIntensity);
       } 
       // go to the next pixel
-      _pulLayer++;
+      pubLayer+=4;
       slL2Point += slDL2oDU;
       slDL2oDU  += _slDDL2oDU;
     }
     // go to the next row
-    _pulLayer    += _slModulo/BYTES_PER_TEXEL;
+    pubLayer     += _slModulo;
     _slL2Row     += _slDL2oDV;
     _slDL2oDV    += _slDDL2oDV;
     _slDL2oDURow += _slDDL2oDUoDV;
@@ -670,6 +669,7 @@ skipPixel:
 
 #else   // Portable C version...
 
+  UBYTE* pubLayer = (UBYTE*)_pulLayer;
   for( PIX pixV=0; pixV<_iRowCt; pixV++)
   {
     SLONG slL2Point = _slL2Row;
@@ -681,12 +681,12 @@ skipPixel:
         SLONG slL = (slL2Point>>SHIFTX)&(SQRTTABLESIZE-1);  // and is just for degenerate cases
         SLONG slIntensity = _slLightMax;
         slL = aubSqrt[slL];
-        if( slL>_slHotSpot) slIntensity = ((255-slL)*_slLightStep)>>8;
+        if( slL>_slHotSpot) slIntensity = ((255-slL)*_slLightStep);
         // add the intensity to the pixel
-        AddToCluster( (UBYTE*)_pulLayer, slIntensity/255.0f);
+        AddToCluster( pubLayer, slIntensity);
       } 
       // go to the next pixel
-      _pulLayer++;
+      pubLayer+=4;
       slL2Point += slDL2oDU;
       slDL2oDU  += _slDDL2oDU;
       ubMask<<=1;
@@ -696,7 +696,7 @@ skipPixel:
       }
     }
     // go to the next row
-    _pulLayer    += _slModulo/BYTES_PER_TEXEL;
+    pubLayer     += _slModulo;
     _slL2Row     += _slDL2oDV;
     _slDL2oDV    += _slDDL2oDV;
     _slDL2oDURow += _slDDL2oDUoDV;
@@ -885,7 +885,35 @@ skipPixel:
  #endif
 
 #else
-  STUBBED("Some layer junk");
+  // for each pixel in the shadow map
+  UBYTE* pubLayer = (UBYTE*)_pulLayer;
+  for( PIX pixV=0; pixV<_iRowCt; pixV++)
+  {
+    SLONG slL2Point = _slL2Row;
+    SLONG slDL2oDU  = _slDL2oDURow;
+    for( PIX pixU=0; pixU<_iPixCt; pixU++)
+    {
+      // if the point is not masked
+      if(slL2Point<FTOX) {
+        SLONG sl1oL = (slL2Point>>SHIFTX)&(SQRTTABLESIZE-1);  // and is just for degenerate cases
+        sl1oL = auw1oSqrt[sl1oL];
+        SLONG slIntensity = _slLightMax;
+        if( sl1oL<256) slIntensity = 0;
+        else if( sl1oL<slMax1oL) slIntensity = ((sl1oL-256)*_slLightStep)/*>>16*/;
+        // add the intensity to the pixel
+        AddToCluster( pubLayer, slIntensity);
+      } 
+      // advance to next pixel
+      pubLayer+=4;
+      slL2Point +=  slDL2oDU;
+      slDL2oDU  += _slDDL2oDU;
+    }
+    // advance to next row
+    pubLayer     += _slModulo;
+    _slL2Row     += _slDL2oDV;
+    _slDL2oDV    += _slDDL2oDV;
+    _slDL2oDURow += _slDDL2oDUoDV;
+  }
 #endif
 
 }
@@ -1079,6 +1107,7 @@ skipPixel:
 #else
 
   // for each pixel in the shadow map
+  UBYTE* pubLayer = (UBYTE*)_pulLayer;
   for( PIX pixV=0; pixV<_iRowCt; pixV++)
   {
     SLONG slL2Point = _slL2Row;
@@ -1090,12 +1119,13 @@ skipPixel:
         SLONG sl1oL = (slL2Point>>SHIFTX)&(SQRTTABLESIZE-1);  // and is just for degenerate cases
         sl1oL = auw1oSqrt[sl1oL];
         SLONG slIntensity = _slLightMax;
-        if( sl1oL<slMax1oL) slIntensity = ((sl1oL-256)*_slLightStep)>>16;
+        if( sl1oL<256) slIntensity = 0;
+        else if( sl1oL<slMax1oL) slIntensity = ((sl1oL-256)*_slLightStep)/*>>16*/;
         // add the intensity to the pixel
-        AddToCluster( (UBYTE*)_pulLayer, slIntensity/255.0f);
+        AddToCluster( pubLayer, slIntensity);
       } 
       // advance to next pixel
-      _pulLayer++;
+      pubLayer+=4;
       slL2Point +=  slDL2oDU;
       slDL2oDU  += _slDDL2oDU;
       ubMask<<=1;
@@ -1105,7 +1135,7 @@ skipPixel:
       }
     }
     // advance to next row
-    _pulLayer    += _slModulo/BYTES_PER_TEXEL;
+    pubLayer     += _slModulo;
     _slL2Row     += _slDL2oDV;
     _slDL2oDV    += _slDDL2oDV;
     _slDL2oDURow += _slDDL2oDUoDV;
@@ -1593,15 +1623,15 @@ rowNext:
  #endif
 
 #else
-
+  UBYTE* pubLayer = (UBYTE*)_pulLayer;
   // for each pixel in the shadow map
   for( PIX pixV=0; pixV<_iRowCt; pixV++) {
     for( PIX pixU=0; pixU<_iPixCt; pixU++) {
       // add the intensity to the pixel
-      AddToCluster( (UBYTE*)_pulLayer);
-      _pulLayer++; // go to the next pixel
+      AddToCluster( pubLayer );
+      pubLayer+=4; // go to the next pixel
     } // go to the next row
-    _pulLayer += _slModulo;
+    pubLayer += _slModulo;
   }
 
 #endif
@@ -1691,23 +1721,23 @@ skipLight:
  #endif
 
 #else
-
+  UBYTE* pubLayer = (UBYTE*)_pulLayer;
   // for each pixel in the shadow map
   for( PIX pixV=0; pixV<_iRowCt; pixV++) {
     for( PIX pixU=0; pixU<_iPixCt; pixU++) {
       // if the point is not masked
       if( *pubMask&ubMask) {
         // add the intensity to the pixel
-        AddToCluster( (UBYTE*)_pulLayer);
+        AddToCluster( pubLayer);
       } // go to the next pixel
-      _pulLayer++;
+      pubLayer+=4;
       ubMask<<=1;
       if( ubMask==0) {
         pubMask ++;
         ubMask = 1;
       }
     } // go to the next row
-    _pulLayer += _slModulo;
+    pubLayer += _slModulo;
   }
 
 #endif
@@ -1779,7 +1809,7 @@ void CLayerMixer::AddOneLayerDirectional( CBrushShadowLayer *pbsl, UBYTE *pubMas
 // clamper helper
 static INDEX GetDither(void)
 {
-  shd_iDithering = Clamp( shd_iDithering, 0L, 5L);
+  shd_iDithering = Clamp( shd_iDithering, 0, 5);
   INDEX iDither  = shd_iDithering;
   if( iDither>2) iDither++;
   return iDither;
@@ -1915,7 +1945,7 @@ void CLayerMixer::MixOneMipmap(CBrushShadowMap *pbsm, INDEX iMipmap)
   if( bHasGradient && gpGradient.gp_bDark) AddOneLayerGradient( gpGradient);
 
   // do eventual filtering of shadow layer
-  shd_iFiltering = Clamp( shd_iFiltering, 0L, +6L);
+  shd_iFiltering = Clamp( shd_iFiltering, 0, 6);
   if( shd_iFiltering>0) {
     FilterBitmap( shd_iFiltering, lm_pulShadowMap, lm_pulShadowMap,
                   lm_pixPolygonSizeU, lm_pixPolygonSizeV, lm_pixCanvasSizeU, lm_pixCanvasSizeV);
@@ -1935,8 +1965,7 @@ void CLayerMixer::MixOneMipmap(CBrushShadowMap *pbsm, INDEX iMipmap)
 __forceinline void CLayerMixer::CopyShadowLayer(void)
 {
  #if (defined USE_PORTABLE_C)
-   STUBBED("shadow layer stuff");
-
+   memcpy(lm_pulShadowMap, lm_pulStaticShadowMap, lm_pixCanvasSizeU*lm_pixCanvasSizeV*4);
  #elif (defined __MSVC_INLINE__)
   __asm {
     cld
@@ -1969,8 +1998,10 @@ __forceinline void CLayerMixer::CopyShadowLayer(void)
 __forceinline void CLayerMixer::FillShadowLayer( COLOR col)
 {
  #if (defined USE_PORTABLE_C)
-   STUBBED("FillShadowLayer");
-
+   DWORD* dst = (DWORD*)lm_pulShadowMap;
+   int n = lm_pixCanvasSizeU*lm_pixCanvasSizeV;   
+   DWORD color = __builtin_bswap32(col);
+   while(n--) {*(dst++)=color;}
  #elif (defined __MSVC_INLINE__)
   __asm {
     cld

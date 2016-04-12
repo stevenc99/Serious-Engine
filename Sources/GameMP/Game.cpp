@@ -201,7 +201,7 @@ CEnableUserBreak::~CEnableUserBreak() {
 static void DumpDemoProfile(void)
 {
   CTString strFragment, strAnalyzed;
-  dem_iProfileRate = Clamp( dem_iProfileRate, 0L, 60L);
+  dem_iProfileRate = Clamp( dem_iProfileRate, 0, 60);
   strFragment = _pGame->DemoReportFragmentsProfile( dem_iProfileRate);
   strAnalyzed = _pGame->DemoReportAnalyzedProfile();
   try {
@@ -225,7 +225,7 @@ static void DumpDemoProfile(void)
 static void ReportDemoProfile(void)
 {
   CTString strFragment, strAnalyzed;
-  dem_iProfileRate = Clamp( dem_iProfileRate, 0L, 60L);
+  dem_iProfileRate = Clamp( dem_iProfileRate, 0, 60);
   strFragment = _pGame->DemoReportFragmentsProfile( dem_iProfileRate);
   strAnalyzed = _pGame->DemoReportAnalyzedProfile();
   CPrintF( strFragment);
@@ -1023,7 +1023,7 @@ void CGame::InitInternal( void)
   extern CTString GetCurrentGameTypeName(void);
   extern ULONG GetSpawnFlagsForGameType(INDEX);
   extern ULONG GetSpawnFlagsForGameTypeCfunc(void* pArgs);
-  extern BOOL IsMenuEnabled(const CTString &);
+  extern BOOL IsMenuEnabled_(const CTString &);
   extern BOOL IsMenuEnabledCfunc(void* pArgs);
   _pShell->DeclareSymbol("user CTString GetGameAgentRulesInfo(void);",   (void *)&GetGameAgentRulesInfo);
   _pShell->DeclareSymbol("user CTString GetGameTypeName(INDEX);",        (void *)&GetGameTypeNameCfunc);
@@ -1035,7 +1035,7 @@ void CGame::InitInternal( void)
 
   _pShell->DeclareSymbol("CTString GetGameTypeNameSS(INDEX);",           (void *)&GetGameTypeName);
   _pShell->DeclareSymbol("INDEX GetSpawnFlagsForGameTypeSS(INDEX);",     (void *)&GetSpawnFlagsForGameType);
-  _pShell->DeclareSymbol("INDEX IsMenuEnabledSS(CTString);",             (void *)&IsMenuEnabled);
+  _pShell->DeclareSymbol("INDEX IsMenuEnabledSS(CTString);",             (void *)&IsMenuEnabled_);
 
   _pShell->DeclareSymbol("user const INDEX ctl_iCurrentPlayerLocal;", (void *)&ctl_iCurrentPlayerLocal);
   _pShell->DeclareSymbol("user const INDEX ctl_iCurrentPlayer;",      (void *)&ctl_iCurrentPlayer);
@@ -1896,7 +1896,7 @@ static void PrintStats( CDrawPort *pdpDrawPort)
   }
 
   // if stats aren't required
-  hud_iStats = Clamp( hud_iStats, 0L, 2L);
+  hud_iStats = Clamp( hud_iStats, 0, 2);
   if( hud_iStats==0 || (hud_iEnableStats==0 && hud_fEnableFPS==0)) {
     // display nothing
     _iCheckNow = 0;
@@ -1979,7 +1979,7 @@ static void MakeSplitDrawports(enum CGame::SplitScreenCfg ssc, INDEX iCount, CDr
   // if observer
   if (ssc==CGame::SSC_OBSERVER) {
     // must have at least one screen
-    iCount = Clamp(iCount, 1L, 4L);
+    iCount = Clamp(iCount, 1, 4);
     // starting at first drawport
     iFirstObserver = 0;
   }
@@ -2185,10 +2185,10 @@ void CGame::GameRedrawView( CDrawPort *pdpDrawPort, ULONG ulFlags)
     && gm_CurrentSplitScreenCfg!=SSC_DEDICATED )
   {
 
-    INDEX ctObservers = Clamp(gam_iObserverConfig, 0L, 4L);
-    INDEX iObserverOffset = ClampDn(gam_iObserverOffset, 0L);
+    INDEX ctObservers = Clamp(gam_iObserverConfig, 0, 4);
+    INDEX iObserverOffset = ClampDn(gam_iObserverOffset, 0);
     if (gm_CurrentSplitScreenCfg==SSC_OBSERVER) {
-      ctObservers = ClampDn(ctObservers, 1L);
+      ctObservers = ClampDn(ctObservers, 1);
     }
     if (gm_CurrentSplitScreenCfg!=SSC_OBSERVER) {
       if (!gam_bEnableAdvancedObserving || !GetSP()->sp_bCooperative) {
@@ -2294,7 +2294,7 @@ void CGame::GameRedrawView( CDrawPort *pdpDrawPort, ULONG ulFlags)
           if (!CAM_IsOn()) {
             _bPlayerViewRendered = TRUE;
             // render it
-            apenViewers[i]->RenderGameView(pdp, (void*)ulFlags);
+            apenViewers[i]->RenderGameView(pdp, (void*)((size_t)ulFlags));
           } else {
             CAM_Render(apenViewers[i], pdp);
           }
@@ -2823,8 +2823,14 @@ void CGame::LCDInit(void)
 {
   try {
     _toBcgClouds.SetData_t(CTFILENAME("Textures\\General\\Background6.tex"));
+#ifdef FIRST_ENCOUNTER
+    _toPointer.SetData_t(CTFILENAME("Textures\\General\\Pointer.tex"));
+    _toBcgGrid.SetData_t(CTFILENAME("Textures\\General\\Grid16x16-dot.tex"));
+#else
     _toPointer.SetData_t(CTFILENAME("TexturesMP\\General\\Pointer.tex"));
     _toBcgGrid.SetData_t(CTFILENAME("TexturesMP\\General\\grid.tex"));
+#endif
+    // thoses are not in original TFE datas and must be added externaly (with SE1_10.gro or a minimal versio of it)
     _toBackdrop.SetData_t(CTFILENAME("TexturesMP\\General\\MenuBack.tex"));
     _toSamU.SetData_t(CTFILENAME("TexturesMP\\General\\SamU.tex"));
     _toSamD.SetData_t(CTFILENAME("TexturesMP\\General\\SamD.tex"));

@@ -96,7 +96,11 @@ public:
 
 
 // ------------------------------------ Ogg Vorbis
+#ifdef USE_TREMOR
+#include <tremor/ivorbisfile.h>  // we define needed stuff ourselves, and ignore the rest
+#else
 #include <vorbis/vorbisfile.h>  // we define needed stuff ourselves, and ignore the rest
+#endif
 
 // vorbis vars
 BOOL _bOVEnabled = FALSE;
@@ -144,7 +148,7 @@ static size_t ogg_read_func  (void *ptr, size_t size, size_t nmemb, void *dataso
   // calculate how much can be read at most
   SLONG slToRead = size*nmemb;
   SLONG slCurrentPos = ftell(pogg->ogg_fFile)-pogg->ogg_slOffset;
-  SLONG slSizeLeft = ClampDn(pogg->ogg_slSize-slCurrentPos, 0L);
+  SLONG slSizeLeft = ClampDn(pogg->ogg_slSize-slCurrentPos, 0);
   slToRead = ClampUp(slToRead, slSizeLeft);
 
   // rounded down to the block size
@@ -208,7 +212,11 @@ void CSoundDecoder::InitPlugins(void)
        #if ((defined PLATFORM_WIN32) && (defined NDEBUG))
          #define VORBISLIB "vorbisfile_d"
        #else
-         #define VORBISLIB "vorbisfile"
+         #ifdef USE_TREMOR
+          #define VORBISLIB "vorbisidec"
+         #else
+          #define VORBISLIB "vorbisfile"
+         #endif
        #endif
        _hOV = CDynamicLoader::GetInstance(VORBISLIB);
        if( _hOV->GetError() != NULL) {
@@ -571,8 +579,12 @@ INDEX CSoundDecoder::Decode(void *pvDestBuffer, INDEX ctBytesToDecode)
     char *pch = (char *)pvDestBuffer;
     INDEX ctDecoded = 0;
     while (ctDecoded<ctBytesToDecode) {
+      #ifdef USE_TREMOR
+      long iRes = pov_read(sdc_pogg->ogg_vfVorbisFile, pch, ctBytesToDecode-ctDecoded, &iCurrrentSection);
+      #else
       long iRes = pov_read(sdc_pogg->ogg_vfVorbisFile, pch, ctBytesToDecode-ctDecoded, 
         0, 2, 1, &iCurrrentSection);
+      #endif
       if (iRes<=0) {
         return ctDecoded;
       }

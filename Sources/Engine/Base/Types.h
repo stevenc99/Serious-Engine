@@ -26,16 +26,32 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Base/Base.h>
 #include <Engine/Graphics/gl_types.h>
 
-typedef signed long  int    SLONG;
+// !!! FIXME: use stdint.h for this (and other things like INDEX, too)?
+typedef signed int    SLONG;
 typedef signed short int    SWORD;
 typedef signed char         SBYTE;
 typedef signed int          SINT;
 
-typedef unsigned long  int  ULONG;
+typedef unsigned int  ULONG;
 typedef unsigned short int  UWORD;
 typedef unsigned char       UBYTE;
 typedef unsigned int        UINT;
 
+// Flip this to 1 to turn off these messages everywhere.
+// !!! FIXME: I have it forced off for Windows because fprintf.
+#if 0 || PLATFORM_WIN32
+#define STUBBED(txt) do {} while (0)
+#endif
+
+#ifndef STUBBED
+    #define STUBBED(txt) do { \
+        static bool already_seen = false; \
+        if (!already_seen) { \
+            already_seen = true; \
+            fprintf(stderr, "STUBBED: %s in %s, line %d.\n", txt, __FILE__, __LINE__); \
+        } \
+    } while (0)
+#endif
 
 #if __POWERPC__  /* rcg03232004 */
   #define PLATFORM_BIGENDIAN 1
@@ -126,7 +142,7 @@ typedef unsigned int        UINT;
     #define _vsnprintf vsnprintf
     #define _snprintf snprintf
     #define _set_new_handler std::set_new_handler
-    #define _finite finite
+    #define _finite isfinite
 
     inline void _RPT_do(const char *type, const char *fmt, ...)
     {
@@ -151,8 +167,6 @@ typedef unsigned int        UINT;
     #define _RPT2(type, fmt, a1, a2)         _RPT_do(type, fmt, a1, a2)
     #define _RPT3(type, fmt, a1, a2, a3)     _RPT_do(type, fmt, a1, a2, a3)
     #define _RPT4(type, fmt, a1, a2, a3, a4) _RPT_do(type, fmt, a1, a2, a3, a4)
-
-    #define STUBBED(txt) fprintf(stderr, "STUB: %s in %s, line %d.\n", txt, __FILE__, __LINE__)
 
     // !!! FIXME : Should inline functions go somewhere else?
 
@@ -207,8 +221,8 @@ typedef unsigned int        UINT;
     typedef char CHAR;
     typedef UBYTE BYTE;
     typedef unsigned short WORD;
-    typedef unsigned long  int  DWORD;
-    typedef signed long  int    LONG;
+    typedef unsigned int  DWORD;
+    typedef signed int    LONG;
     typedef void *LPVOID;
     typedef char *LPSTR;
     typedef signed long int WPARAM;
@@ -218,6 +232,7 @@ typedef unsigned int        UINT;
 
     typedef void *HWND;  /* !!! FIXME this sucks. */
     typedef void *HINSTANCE;  /* !!! FIXME this sucks. */
+    typedef void *HDC;  /* !!! FIXME this sucks. */
     typedef void *HGLRC;  /* !!! FIXME this sucks. */
     typedef void *HGLOBAL;  /* !!! FIXME this sucks. */
     typedef ULONG COLORREF;  /* !!! FIXME this sucks. */
@@ -269,8 +284,8 @@ typedef unsigned int        UINT;
 #define MAX_UBYTE ((UBYTE)0xFF)
 
 typedef int BOOL;		        // this is for TRUE/FALSE
-typedef long int RESULT;		// for error codes
-typedef long int INDEX;     // for indexed values and quantities
+typedef int RESULT;		// for error codes
+typedef int INDEX;     // for indexed values and quantities
 
 #define FALSE 0
 #define TRUE  1

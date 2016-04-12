@@ -294,6 +294,7 @@ void lzrw1_compress(const UBYTE *p_src_first, ULONG src_len,UBYTE *p_dst_first, 
  UBYTE *p_dst_post=p_dst_first+src_len;
  const UBYTE *p_src_max1=p_src_post-ITEMMAX,*p_src_max16=p_src_post-16*ITEMMAX;
  const UBYTE *hash[4096];
+ memset(hash, 0, sizeof(hash));
  UBYTE *p_control; UWORD control=0,control_bits=0;
  *p_dst=FLAG_COMPRESS; p_dst+=FLAG_BYTES; p_control=p_dst; p_dst+=2;
  while (TRUE)
@@ -424,9 +425,11 @@ int ZEXPORT compress (dest, destLen, source, sourceLen)
     */
 
   CTSingleLock slZip(&zip_csLock, TRUE);
-  int iResult = compress(
-    (UBYTE *)pvDst, (ULONG *)&slDstSize,
-    (const UBYTE *)pvSrc, (ULONG)slSrcSize);
+  uLongf dstlen = (uLongf) slDstSize;
+  const int iResult = compress(
+    (Bytef *)pvDst, &dstlen,
+    (const Bytef *)pvSrc, (uLong)slSrcSize);
+  slDstSize = (SLONG) dstlen;
   if (iResult==Z_OK) {
     return TRUE;
   } else {
@@ -448,10 +451,11 @@ int ZEXPORT uncompress (dest, destLen, source, sourceLen)
     */
 
   CTSingleLock slZip(&zip_csLock, TRUE);
-  int iResult = uncompress(
-    (UBYTE *)pvDst, (ULONG *)&slDstSize,
-    (const UBYTE *)pvSrc, (ULONG)slSrcSize);
-
+  uLongf dstlen = (uLongf) slDstSize;
+  const int iResult = uncompress(
+    (Bytef *)pvDst, &dstlen,
+    (const Bytef *)pvSrc, (uLong)slSrcSize);
+  slDstSize = (SLONG) dstlen;
   if (iResult==Z_OK) {
     return TRUE;
   } else {

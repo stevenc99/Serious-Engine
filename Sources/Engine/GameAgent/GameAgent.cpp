@@ -34,6 +34,7 @@ typedef int socklen_t;
 #else
 #include <fcntl.h>
 #include <netdb.h>
+#include <pthread.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -165,12 +166,6 @@ void _initializeWinsock(void)
   _wsaData = new WSADATA;
   _socket = INVALID_SOCKET;
 
-  // make the buffer that we'll use for packet reading
-  if(_szBuffer != NULL) {
-    delete[] _szBuffer;
-  }
-  _szBuffer = new char[2050];
-
   // start WSA
   if(WSAStartup(MAKEWORD(2, 2), _wsaData) != 0) {
     CPrintF("Error initializing winsock!\n");
@@ -178,6 +173,12 @@ void _initializeWinsock(void)
     return;
   }
 #endif
+
+  // make the buffer that we'll use for packet reading
+  if(_szBuffer != NULL) {
+    delete[] _szBuffer;
+  }
+  _szBuffer = new char[2050];
 
   // get the host IP
   hostent* phe;
@@ -1029,7 +1030,28 @@ extern void GameAgent_EnumUpdate(void)
   }
  } else {
  #ifndef PLATFORM_WIN32
- STUBBED("write me");
+ //STUBBED("write me");
+ /* MSLegacy LinuxPort */
+    if(_bActivated) {
+        pthread_t  	_hThread;
+        int   		_iThreadId;
+
+        _iThreadId = pthread_create(&_hThread, NULL, _MS_Thread, NULL);
+        if (_iThreadId == 0) {
+            pthread_detach(_hThread);
+        }
+        _bActivated = FALSE;		
+    }
+    if(_bActivatedLocal) {
+        pthread_t  _hThread;
+        int   	   _iThreadId;
+
+        _iThreadId = pthread_create(&_hThread, NULL, _LocalNet_Thread, NULL);
+        if (_iThreadId == 0) {
+            pthread_detach(_hThread);
+        }
+        _bActivatedLocal = FALSE;		
+    }	 
  #else
  /* MSLegacy */
     if(_bActivated) {
@@ -1068,7 +1090,11 @@ extern void GameAgent_EnumCancel(void)
 
 #ifdef PLATFORM_WIN32
 DWORD WINAPI _MS_Thread(LPVOID lpParam) {
-    SOCKET _sockudp = NULL;
+#else
+void*        _MS_Thread(void *arg) {
+#endif
+
+    SOCKET _sockudp = INVALID_SOCKET;
     struct _sIPPort {
         UBYTE bFirst;
         UBYTE bSecond;
@@ -1081,7 +1107,7 @@ DWORD WINAPI _MS_Thread(LPVOID lpParam) {
     _sockudp = socket(AF_INET, SOCK_DGRAM, 0);
     if (_sockudp == INVALID_SOCKET){
         WSACleanup();
-        return -1;
+        return 0;
     }
 
     _sIPPort* pServerIP = (_sIPPort*)(_szIPPortBuffer);
@@ -1111,7 +1137,7 @@ DWORD WINAPI _MS_Thread(LPVOID lpParam) {
             (sockaddr *) &sinServer, sizeof(sinServer));
 
         sockaddr_in _sinClient;
-        int _iClientLength = sizeof(_sinClient);
+        socklen_t _iClientLength = sizeof(_sinClient);
 
         fd_set readfds_udp;                         // declare a read set
         struct timeval timeout_udp;                 // declare a timeval for our timer
@@ -1133,7 +1159,7 @@ DWORD WINAPI _MS_Thread(LPVOID lpParam) {
             sPch = strstr(_szBuffer, "\\gamename\\serioussamse\\");
             if(!sPch) {
                 CPrintF("Unknown query server response!\n");
-                return -1;
+                return 0;
             } else {
 
                 CTString strPlayers;
@@ -1266,8 +1292,13 @@ DWORD WINAPI _MS_Thread(LPVOID lpParam) {
     return 0;
 }
 
+#ifdef PLATFORM_WIN32
 DWORD WINAPI _LocalNet_Thread(LPVOID lpParam) {
-    SOCKET _sockudp = NULL;
+#else
+void*        _LocalNet_Thread(void *arg) {
+#endif
+
+    SOCKET _sockudp = INVALID_SOCKET;
     struct _sIPPort {
         UBYTE bFirst;
         UBYTE bSecond;
@@ -1284,7 +1315,7 @@ DWORD WINAPI _LocalNet_Thread(LPVOID lpParam) {
 			delete[] _szIPPortBufferLocal;
 		}
 		_szIPPortBufferLocal = NULL;		
-		return -1;
+		return 0;
     }
 
     _sIPPort* pServerIP = (_sIPPort*)(_szIPPortBufferLocal);
@@ -1314,7 +1345,7 @@ DWORD WINAPI _LocalNet_Thread(LPVOID lpParam) {
             (sockaddr *) &sinServer, sizeof(sinServer));
 
         sockaddr_in _sinClient;
-        int _iClientLength = sizeof(_sinClient);
+        socklen_t _iClientLength = sizeof(_sinClient);
 
         fd_set readfds_udp;                         // declare a read set
         struct timeval timeout_udp;                 // declare a timeval for our timer
@@ -1341,7 +1372,7 @@ DWORD WINAPI _LocalNet_Thread(LPVOID lpParam) {
 				}
 				_szIPPortBufferLocal = NULL;               
 				WSACleanup();
-				return -1;
+				return 0;
             } else {
 
                 CTString strPlayers;
@@ -1477,5 +1508,5 @@ DWORD WINAPI _LocalNet_Thread(LPVOID lpParam) {
     WSACleanup();
     return 0;
 }
-#endif
+
 

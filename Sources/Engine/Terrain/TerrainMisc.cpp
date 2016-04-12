@@ -308,16 +308,30 @@ Rect ExtractPolygonsInBox(CTerrain *ptrTerrain, const FLOATaabbox3D &bboxExtract
   Rect rc;
   if(!bFixSize) {
     // max vector of bbox in incremented for one, because first vertex is at 0,0,0 in world and in heightmap is at 1,1
+#ifdef __arm__
+    rc.rc_iLeft   = (isinf(bbox.minvect(1)))?(INDEX)0:Clamp((INDEX)(bbox.minvect(1)-0),(INDEX)0,ptrTerrain->tr_pixHeightMapWidth);
+    rc.rc_iTop    = (isinf(bbox.minvect(3)))?(INDEX)0:Clamp((INDEX)(bbox.minvect(3)-0),(INDEX)0,ptrTerrain->tr_pixHeightMapHeight);
+    rc.rc_iRight  = (isinf(bbox.maxvect(1)))?(INDEX)0:Clamp((INDEX)ceil(bbox.maxvect(1)+1),(INDEX)0,ptrTerrain->tr_pixHeightMapWidth);
+    rc.rc_iBottom = (isinf(bbox.maxvect(3)))?(INDEX)0:Clamp((INDEX)ceil(bbox.maxvect(3)+1),(INDEX)0,ptrTerrain->tr_pixHeightMapHeight);
+#else
     rc.rc_iLeft   = Clamp((INDEX)(bbox.minvect(1)-0),(INDEX)0,ptrTerrain->tr_pixHeightMapWidth);
     rc.rc_iTop    = Clamp((INDEX)(bbox.minvect(3)-0),(INDEX)0,ptrTerrain->tr_pixHeightMapHeight);
     rc.rc_iRight  = Clamp((INDEX)ceil(bbox.maxvect(1)+1),(INDEX)0,ptrTerrain->tr_pixHeightMapWidth);
     rc.rc_iBottom = Clamp((INDEX)ceil(bbox.maxvect(3)+1),(INDEX)0,ptrTerrain->tr_pixHeightMapHeight);
+#endif
   } else {
     // max vector of bbox in incremented for one, because first vertex is at 0,0,0 in world and in heightmap is at 1,1
+#ifdef __arm__
+    rc.rc_iLeft   = (isinf(bbox.minvect(1)))?(INDEX)0:Clamp((INDEX)(bbox.minvect(1)-0),(INDEX)0,ptrTerrain->tr_pixHeightMapWidth);
+    rc.rc_iTop    = (isinf(bbox.minvect(3)))?(INDEX)0:Clamp((INDEX)(bbox.minvect(3)-0),(INDEX)0,ptrTerrain->tr_pixHeightMapHeight);
+    rc.rc_iRight  = (isinf(bbox.maxvect(1)))?(INDEX)0:Clamp((INDEX)(bbox.maxvect(1)+0),(INDEX)0,ptrTerrain->tr_pixHeightMapWidth);
+    rc.rc_iBottom = (isinf(bbox.maxvect(3)))?(INDEX)0:Clamp((INDEX)(bbox.maxvect(3)+0),(INDEX)0,ptrTerrain->tr_pixHeightMapHeight);
+#else
     rc.rc_iLeft   = Clamp((INDEX)(bbox.minvect(1)-0),(INDEX)0,ptrTerrain->tr_pixHeightMapWidth);
     rc.rc_iTop    = Clamp((INDEX)(bbox.minvect(3)-0),(INDEX)0,ptrTerrain->tr_pixHeightMapHeight);
     rc.rc_iRight  = Clamp((INDEX)(bbox.maxvect(1)+0),(INDEX)0,ptrTerrain->tr_pixHeightMapWidth);
     rc.rc_iBottom = Clamp((INDEX)(bbox.maxvect(3)+0),(INDEX)0,ptrTerrain->tr_pixHeightMapHeight);
+#endif
   }
 
   INDEX iStartX = rc.rc_iLeft;
@@ -756,9 +770,9 @@ static void CalcPointLight(CPlacement3D &plLight, CLightSource *plsLight, Rect &
       fDot = Clamp(fDot,0.0f,1.0f);
       SLONG slDot = NormFloatToByte(fDot);
 
-      pacolData->ub.r = ClampUp(pacolData->ub.r + ((colLight.ub.r*slDot)>>8),255L);
-      pacolData->ub.g = ClampUp(pacolData->ub.g + ((colLight.ub.g*slDot)>>8),255L);
-      pacolData->ub.b = ClampUp(pacolData->ub.b + ((colLight.ub.b*slDot)>>8),255L);
+      pacolData->ub.r = ClampUp(pacolData->ub.r + ((colLight.ub.r*slDot)>>8),255);
+      pacolData->ub.g = ClampUp(pacolData->ub.g + ((colLight.ub.g*slDot)>>8),255);
+      pacolData->ub.b = ClampUp(pacolData->ub.b + ((colLight.ub.b*slDot)>>8),255);
       pacolData->ub.a = 255;
       pacolData++;
     }
@@ -796,9 +810,9 @@ static void CalcDirectionalLight(CPlacement3D &plLight, CLightSource *plsLight, 
 
   // is overbrightning enabled
   if(bOverBrightning) {
-    slar = ClampUp(slar,127L);
-    slag = ClampUp(slag,127L);
-    slab = ClampUp(slab,127L);
+    slar = ClampUp(slar,127);
+    slag = ClampUp(slag,127);
+    slab = ClampUp(slab,127);
     ubColShift = 8;
   } else {
     slar*=2;
@@ -824,9 +838,9 @@ static void CalcDirectionalLight(CPlacement3D &plLight, CLightSource *plsLight, 
       fDot = Clamp(fDot,0.0f,1.0f);
       SLONG slDot = NormFloatToByte(fDot);
 
-      pacolData->ub.r = ClampUp(pacolData->ub.r + slar + ((colLight.ub.r*slDot)>>ubColShift),255L);
-      pacolData->ub.g = ClampUp(pacolData->ub.g + slag + ((colLight.ub.g*slDot)>>ubColShift),255L);
-      pacolData->ub.b = ClampUp(pacolData->ub.b + slab + ((colLight.ub.b*slDot)>>ubColShift),255L);
+      pacolData->ub.r = ClampUp(pacolData->ub.r + slar + ((colLight.ub.r*slDot)>>ubColShift),255);
+      pacolData->ub.g = ClampUp(pacolData->ub.g + slag + ((colLight.ub.g*slDot)>>ubColShift),255);
+      pacolData->ub.b = ClampUp(pacolData->ub.b + slab + ((colLight.ub.b*slDot)>>ubColShift),255);
       pacolData->ub.a = 255;
       pacolData++;
     }
